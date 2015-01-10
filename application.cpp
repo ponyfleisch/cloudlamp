@@ -1,8 +1,9 @@
 #include "application.h"
 #include "SparkWebSocketServer.h"
+
 extern char* itoa(int a, char* buffer, unsigned char radix);
 
-#define MANUAL 1
+#define NORMAL 1
 #define STROBE_WHITE 2
 #define STROBE_COLOR 3
 #define STROBE_CURRENT 4
@@ -38,7 +39,7 @@ SparkWebSocketServer ws(server);
 
 void setup()
 {
-	current_mode = MANUAL;
+	current_mode = NORMAL;
 	strobe_on_delay = 10;
 	strobe_off_delay = 100;
 	pulse_period = 1;
@@ -68,15 +69,12 @@ void setup()
 	itoa(ip[3], octet, 10); strcat(ipAddress, octet);
 	Spark.variable("endpoint", ipAddress, STRING);
 
-	Serial.begin(9600);
 	CallBack cb = &handleWS;
 
 	ws.setCallBack(cb);
 
 
 	server.begin();
-	Serial.println("Done setup");
-	Serial.flush();
 }
 
 void loop()
@@ -85,10 +83,8 @@ void loop()
 	unsigned char sweep_state = 0;
 
 	ws.doIt();
-
-	// delay(500);
-
-	if(current_mode == MANUAL) return;
+	
+	if(current_mode == NORMAL) return;
 
 	if(current_mode == STROBE_WHITE){
 		if(strobe_state == 1){
@@ -150,9 +146,6 @@ void loop()
 }
 
 int set(String command) {
-	Serial.write("SET CALLED\n");
-	Serial.flush();
-
 	uint32_t val = command.toInt();
 	w = val & 0x000000ff;
 	r = (val & 0x0000ff00) >> 8;
@@ -165,7 +158,7 @@ int set(String command) {
 int mode(String command)
 {
 	if(command == "manual"){
-		current_mode = MANUAL;
+		current_mode = NORMAL;
 		set_all();
 	}else if(command == "strobe_white"){
 		current_mode = STROBE_WHITE;
@@ -259,6 +252,11 @@ void hsvtorgb(unsigned char *r, unsigned char *g, unsigned char *b, unsigned cha
 }
 
 void handleWS(String &cmd, String &result){
-	Serial.println("YO!"); Serial.flush();
-	result = "Yo!";
+	if(cmd.startsWith("mode:")){
+		mode(cmd.substring(cmd.indexOf(":")+1));
+	}else if(cmd.startsWith("color:")){
+		set(cmd.substring(cmd.indexOf(":")+1));
+	}else if(cmd.startsWith("variable:")){
+		variable(cmd.substring(cmd.indexOf(":")+1));
+	}
 }
